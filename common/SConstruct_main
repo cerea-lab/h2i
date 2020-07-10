@@ -1,0 +1,308 @@
+
+import os, commands, sys, glob, re
+
+# Checks the version of SCons.
+EnsureSConsVersion(0, 98, 5)
+
+# Returns 'default' if the variable with name 'input_name' is not in the
+# global namespace; returns the variable otherwise.
+def create_variable(input_name, default):
+    exec("global " + input_name)
+    try:
+        exec("local_copy = " + input_name)
+        if local_copy is None:
+            return default
+        else:
+            return local_copy
+    except:
+        return default
+
+# Returns the input as a list of strings, if the input is a list of strings, a
+# string, None, or if the input can be converted to string. The input must be
+# provided as a string containing its name.
+def to_string_list(input_name):
+    exec("global " + input_name)
+    try:
+        exec("local_copy = " + input_name)
+    except:
+        return []
+    if local_copy is None:
+        return []
+    elif isinstance(local_copy, list):
+        return local_copy
+    else:
+        return Split(str(local_copy))
+
+
+
+
+##############
+# MAIN PATHS #
+##############
+
+# Path to h2i.
+try:
+    h2i_path = create_variable("h2i_path", None)
+    h2i_path = ARGUMENTS.get("h2i", h2i_path)
+    h2i_path = os.path.abspath(h2i_path)
+except:
+    raise Exception, "\"h2i_path\" is not defined!"
+if not os.path.isdir(h2i_path):
+    raise Exception, "The h2i path \"" + h2i_path \
+          + "\" does not appear to be a valid path."
+
+# Creates the include path list if needed.
+include_path_list = to_string_list("include_path_list")
+
+# Appends the other include paths.
+include_path = to_string_list("include_path")
+for path in include_path:
+    if os.path.isdir(path):
+        include_path_list.append(path)
+    elif os.path.isdir(os.path.join(h2i_path, path)):
+        include_path_list.append(os.path.join(h2i_path, path))
+    else:
+        raise Exception, "Unable to find the include directory \"" \
+              + path + "\" (even in h2i directory, \"" \
+              + h2i_path + "\")."
+
+
+########################
+# COMPILERS AND LINKER #
+########################
+
+c_compiler = create_variable("c_compiler", None)
+cpp_compiler = create_variable("cpp_compiler", None)
+fortran_compiler = create_variable("fortran_compiler", None)
+linker = create_variable("linker", "$CXX")
+
+
+#############
+# ARGUMENTS #
+#############
+
+add_argument("debug", ["0", "-1", "1", "2"])
+add_argument("debug_cpp", [ARGUMENTS["debug"], "-1", "0", "1", "2"])
+add_argument("debug_fortran",
+             [ARGUMENTS["debug"], "-1", "0", "1", "2"])
+add_argument("line", ["no", "yes"])
+add_argument("mode_cpp", ["strict", "permissive"])
+add_argument("mode_fortran", ["permissive", "strict"])
+add_argument("_", ["1", "0", "2"])
+add_argument("openmp", ["no", "yes"])
+add_argument("mpi", ["no", "yes"])
+
+flag_openmp = ARGUMENTS.get("flag_openmp", None)
+
+# The compilers and the linker may be changed with command line options.
+if ARGUMENTS["mpi"] == "yes":
+    c_compiler = "mpicc"
+    cpp_compiler = "mpiCC"
+    fortran_compiler = "mpif90"
+    linker = "mpiCC"
+
+c_compiler = ARGUMENTS.get("c", c_compiler)
+cpp_compiler = ARGUMENTS.get("cpp", cpp_compiler)
+fortran_compiler = ARGUMENTS.get("fortran", fortran_compiler)
+linker = ARGUMENTS.get("link", linker)
+
+# C++-specific compilation options.
+cpp_compilation_option = debug_flag("debug_cpp")
+if ARGUMENTS["_"] == "1":
+    cpp_compilation_option += " -DPOLYPHEMUS_SINGLE_UNDERSCORE"
+elif ARGUMENTS["_"] == "2":
+    cpp_compilation_option += " -DPOLYPHEMUS_DOUBLE_UNDERSCORE"
+
+# Fortran-specific compilation options.
+fortran_compilation_option = debug_flag("debug_fortran")
+
+
+###############
+# ENVIRONMENT #
+###############
+
+env = Environment(ENV = os.environ,LINK = 'gfortran')
+env.Replace(CONFIGURELOG = "#/.scons.log")
+if os.environ.has_key("LD_LIBRARY_PATH"):
+    env.Append(LIBPATH = os.environ["LD_LIBRARY_PATH"].split(":"))
+if os.environ.has_key("LIBRARY_PATH"):
+    env.Append(LIBPATH = os.environ["LIBRARY_PATH"].split(":"))
+if os.environ.has_key("CPATH"):
+    env.Append(CPPPATH = os.environ["CPATH"].split(":"))
+if os.environ.has_key("CPLUS_INCLUDE_PATH"):
+    env.Append(CPPPATH = os.environ["CPLUS_INCLUDE_PATH"].split(":"))
+
+# Compilers.
+if c_compiler is not None:
+    env.Replace(CC = c_compiler)
+if cpp_compiler is not None:
+    env.Replace(CXX = cpp_compiler)
+if fortran_compiler is not None:
+    env.Replace(F77 = fortran_compiler)
+    env.Replace(F90 = fortran_compiler)
+    env.Replace(F95 = fortran_compiler)
+    env.Replace(FORTRAN = fortran_compiler)
+
+# In case of GNU compilers, a few options are added.
+if "g++" in env["CXX"] and ARGUMENTS["mode_cpp"] == "strict":
+    cpp_compilation_option += " -Wall -ansi -pedantic -Wno-unused" \
+        + " -Wno-parentheses"
+    # For latest GCC versions.
+    s, o = commands.getstatusoutput(env["CXX"] + " -dumpversion")
+    if s == 0:
+        version = [int(x) for x in o.split('.')]
+        if version >= [3, 4]:
+            cpp_compilation_option += " -Wextra"
+        if version >= [4, 3, 2]:
+            cpp_compilation_option += " -Wno-empty-body"
+if ("g77" in env["FORTRAN"] or "gfortran" in env["FORTRAN"]) \
+       and ARGUMENTS["mode_fortran"] == "strict":
+    fortran_compilation_option += " -Wall -pedantic"
+if "g77" in env["FORTRAN"]:
+    fortran_compilation_option += " -fno-second-underscore"
+
+if ARGUMENTS["openmp"] == "yes":
+    if "g++" in env["CXX"]:
+        cpp_compilation_option += " -fopenmp " \
+                                  "-DPOLYPHEMUS_PARALLEL_WITH_OPENMP"
+    elif "icpc" in env["CXX"]:
+        cpp_compilation_option += " -openmp -DPOLYPHEMUS_PARALLEL_WITH_OPENMP"
+    elif ARGUMENTS.has_key("flag_openmp"):
+        cpp_compilation_option += " " + ARGUMENTS["flag_openmp"] \
+                                  + " -DPOLYPHEMUS_PARALLEL_WITH_OPENMP"
+    else:
+        print "[WARNING]: No openMP parallelization. Please use the option " \
+              "flag_openmp to indicate the openMP compiling option to your " \
+              "C++ compiler."
+    cpp_compilation_option += " -DBZ_THREADSAFE"
+
+    if "gfortran" in env["FORTRAN"]:
+        fortran_compilation_option += " -fopenmp"
+    elif "ifort" in env["FORTRAN"]:
+        fortran_compilation_option += " -openmp"
+    elif ARGUMENTS.has_key("flag_openmp"):
+        fortran_compilation_option += " " + ARGUMENTS["flag_openmp"] \
+                                      + " -DPOLYPHEMUS_PARALLEL_WITH_OPENMP"
+    else:
+        print "[WARNING]: No openMP parallelization. Please use the option" \
+              " flag_openmp to indicate the openMP compiling option " \
+              "suitable to your FORTRAN compiler."
+
+if ARGUMENTS["mpi"] == "yes":
+    cpp_compilation_option += " -DPOLYPHEMUS_PARALLEL_WITH_MPI"
+    fortran_compilation_option += " -DPOLYPHEMUS_PARALLEL_WITH_MPI"
+
+# Other flags may be available.
+flag_cpp = create_variable("flag_cpp", "")
+flag_cpp = ARGUMENTS.get("flag_cpp", flag_cpp).strip()
+if flag_cpp != "":
+    cpp_compilation_option += " " + flag_cpp
+flag_fortran = create_variable("flag_fortran", "")
+flag_fortran = ARGUMENTS.get("flag_fortran", flag_fortran).strip()
+if flag_fortran != "":
+    fortran_compilation_option += " " + flag_fortran
+
+# Linker.
+#env.Replace(LINK = linker)
+
+# Includes.
+env.Append(CPPPATH = include_path_list)
+env.Append(F77PATH = include_path_list)
+env.Append(FORTRANPATH = include_path_list)
+
+# Libraries.
+library_path = to_string_list("library_path")
+for path in library_path:
+    if os.path.isdir(path):
+        env.Append(LIBPATH = [path])
+    elif os.path.isdir(os.path.join(h2i_path, path)):
+        env.Append(LIBPATH = [os.path.join(h2i_path, path)])
+    else:
+        raise Exception, "Unable to find the library directory \"" \
+              + path + "\" (even in h2i directory, \"" \
+              + h2i_path + "\")."
+
+# Checks which libraries are available.
+conf = Configure(env)
+link_flag_list = create_variable("flag_link", "")
+if isinstance(link_flag_list, list):
+    link_flag_list = " ".join(link_flag_list)
+elif link_flag_list is None:
+    link_flag_list = ""
+link_flag_list = ARGUMENTS.get("flag_link", link_flag_list)
+library_list = to_string_list("library_list")
+for library in ["blas", "atlas", "lapack", "g2c", "gfortran",
+                "gslcblas", "blitz", "netcdf", "netcdf_c++",
+                "ifcore"]:
+    if library not in library_list:
+        library_list += [library]
+for library in library_list:
+    if conf.CheckLib(library):
+        link_flag_list += " -l" + library
+        env.Replace(LINKFLAGS = link_flag_list)
+#    else:
+#        print 'Did not find ',library,', exiting!'
+#        Exit(1)
+
+if ARGUMENTS["openmp"] == "yes":
+    if "g++" in env["CXX"]:
+        link_flag_list += " -fopenmp"
+    elif "icpc" in env["CXX"]:
+        link_flag_list += " -openmp"
+    elif ARGUMENTS.has_key("flag_openmp"):
+        link_flag_list += " " + ARGUMENTS["flag_openmp"]
+    else:
+        print "[WARNING]: No openMP parallelization. Please, use the " \
+              "options flag_openmp to add the appropriate openMP linking " \
+              "option."
+    env.Replace(LINKFLAGS = link_flag_list)
+
+
+if ARGUMENTS["line"] == "no":
+    env.Replace(CCCOMSTR = "[C] $SOURCE")
+    env.Replace(CXXCOMSTR = "[C++] $SOURCE")
+    env.Replace(F77COMSTR = "[F77] $SOURCE")
+    env.Replace(F77PPCOMSTR = "[F77-PP] $SOURCE")
+    env.Replace(F90COMSTR = "[F90] $SOURCE")
+    env.Replace(FORTRANCOMSTR = "[FORTRAN] $SOURCE")
+    env.Replace(FORTRANPPCOMSTR = "[FORTRAN-PP] $SOURCE")
+    env.Replace(LINKCOMSTR = "[Linking] $TARGET")
+
+env.Replace(CCFLAGS = cpp_compilation_option)
+env.Replace(F77FLAGS = fortran_compilation_option)
+env.Replace(FORTRANFLAGS = fortran_compilation_option)
+
+
+################
+# C++ PROGRAMS #
+################
+
+# The targets to be built.
+target_list = create_variable("target_list", None)
+if not target_list:
+    target_list = glob.glob("*.cpp")
+#print ">>>>>", target_list
+
+# In case there is a list of targets to be excluded.
+exclude_target = to_string_list("exclude_target")
+for filename in target_list[:]:
+    if filename in exclude_target or filename[:-4] in exclude_target:
+        target_list.remove(filename)
+
+# Dependency list.
+dependency_list = to_string_list("dependency_list")
+for path in include_path_list:
+    dependency_list += glob.glob(os.path.join(path, "*.f"))
+    dependency_list += glob.glob(os.path.join(path, "*.F"))
+    dependency_list += glob.glob(os.path.join(path, "*.f90"))
+    dependency_list += glob.glob(os.path.join(path, "*.C"))
+    dependency_list += glob.glob(os.path.join(path, "*.c"))
+
+# In case there is a list of dependencies to be excluded.
+exclude_dependency = to_string_list("exclude_dependency")
+#exclude_dependency += target_list
+
+for expression in exclude_dependency:
+    for dependency in dependency_list[:]:
+        if re.search(expression, dependency) is not None:
+            dependency_list.remove(dependency)

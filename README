@@ -1,0 +1,15 @@
+The main routine is photochemistry.f
+
+For testing, the initial gas concentrations are given in the folder 
+CONTROL/dem_Exp/
+The simulated gas concentrations are written in the folder RESULTS/test/
+
+The order and list of gas species are given in the file species-racm2.dat
+
+----------------------------------------------------------------------------
+
+To compile:
+	scons
+
+To clean up the files created during compilation:
+	scons -c

@@ -1,0 +1,29 @@
+# species       outdoor_conc	#ATMOSUD (2016 mean value)
+OLT		0
+OLI		0
+TOL		0
+XYL		0
+HCHO		0
+ALD		0
+KET		0
+ISO		0
+CSL		0
+ORA1		0
+ORA2		0
+MACR		0
+MOH		0
+ACD		0
+ACT		0
+BEN		0
+PHEN		0
+BALD		0
+ROH		0
+UALD		0
+LIM		0
+NO		-1		
+NO2             -1	
+HONO		0.03843	
+O3		-1	
+HO		2.824e-5
+HO2		5.481e-3
+

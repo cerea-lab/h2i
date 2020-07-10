@@ -1,0 +1,26 @@
+ --- Experiment : dem_Exp             
+
+ ---- Test name : demo-test                                     
+ Fbuilding    =   0.28999999999999998     
+ u_air        =   0.23999999999999999     
+ kNO2ad       =    3.0000000000000001E-003
+ kNOconvert   =    2.0000000000000002E-015
+ kHONOconvert =    2.9999999999999998E-014
+ kHONOevap    =    5.5000000000000001E-022
+ kNOevap      =    2.9999999999999999E-021
+ kNO2evap     =    1.0000000000000000E-022
+ kHONOdiss    =    1.0000000000000001E-005
+ gamma_NO     =    8.0000000000000005E-009
+ gamma_NO2    =    1.5000000000000000E-006
+ gamma_HONO   =    6.9999999999999997E-007
+ gamma_O3     =    9.9999999999999995E-007
+
+ Adsorbed species initial concentrations
+ initHONO_L   =    1.8000000000000000     
+ initHONO_S   =    2.3999999999999999     
+ initNO_L     =   0.59999999999999998     
+ initNO_S     =    1.2000000000000000     
+ initHNO3_L   =    1.1499999999999999     
+ initHNO3_S   =    1.3999999999999999     
+ initNO2_L    =   0.40000000000000002     
+ initNO2_S    =   0.80000000000000004     

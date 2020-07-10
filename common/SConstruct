@@ -1,0 +1,12 @@
+
+execfile(h2i_path + "common/SConstruct_include")
+
+execfile(h2i_path + "common/SConstruct_main")
+
+# Informs SCons on the targets to be built. It is assumed that all targets
+# have the same dependencies.
+target_list = to_string_list("target_list")
+for filename in target_list:
+    print filename
+    env.Program(filename[:-2], [filename] + dependency_list)
+

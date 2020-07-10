@@ -1,0 +1,20 @@
+# Room parameters
+Fbuild       0.29	# -
+u_air	     0.24	# m/s
+# Heterogeneous kinetic constants
+kNO2ad 		3.d-3
+kNOconvert 	2.d-15
+kHONOconvert 	3.d-14 
+kHONOevap 	5.5d-22 
+kNOevap 	3.d-21 
+kNO2evap 	1.d-22 
+kHONOdiss 	1.d-5 
+# Sorbed species initial concentrations
+HONOad_L	1.8d0
+HONOad_S	2.4d0
+HNO3ad_L	1.15d0
+HNO3ad_S	1.4d0
+NO2ad_L		0.4d0
+NO2ad_S		0.8d0
+NOad_L		0.6d0
+NOad_S		1.2d0

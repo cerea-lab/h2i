@@ -1,0 +1,9 @@
+# Name of the folder containing the input files
+dem_Exp
+# Time step (in s)
+dt	100.d0
+# Name output folder
+test
+# Name output file
+demo-test
+

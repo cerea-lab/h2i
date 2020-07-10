@@ -1,0 +1,19 @@
+# Simulation location (latitude/longitude), days past
+lat          43.404811
+lon          5.053728
+ndays	     298
+# Begining time (in s from January 1st)
+ts	     25775160 	
+# Simulation time (in s from January 1st)
+tf           25797360 	
+# File for temperature and humidity
+temp_RH.txt
+# Type of paint
+0	# 3 = 3.5% of Ti02; 0 = 0%; 
+# Room
+kAER	     0.25	# h-1
+v_room	     32.8	# m3
+s_room	     62.7	# m2
+s_paint	     24.0	# m2
+# File for initial conditions estimated from simulations
+simul_species
